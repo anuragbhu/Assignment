@@ -1,9 +1,9 @@
 from threading import Thread
-from datetime import datetime, timedelta
 from flask import Flask, jsonify
 import time
 from data_loaders.process_products import load_product_data
 from data_loaders.process_transactions import load_existing_transactions
+from service.process_transaction_summary import process_summary
 
 app = Flask(__name__)
 
@@ -44,14 +44,7 @@ def get_transaction(transaction_id):
 # REST API: Transaction summary by product over the last N days
 @app.route('/assignment/transactionSummaryByProducts/<int:last_n_days>', methods=['GET'])
 def transaction_summary_by_products(last_n_days):
-    cutoff_date = datetime.now() - timedelta(days=last_n_days)
-    summary = {}
-
-    for transaction, details in transaction_data.items():
-        if details['transactionDatetime'] >= cutoff_date:
-            product_id = details['productId']
-            product_name = product_data.get(product_id, {}).get('productName', 'Unknown')
-            summary[product_name] = summary.get(product_name, 0) + details['transactionAmount']
+    summary = process_summary(last_n_days, transaction_data, product_data, 'productName')
 
     summary_list = [{'productName': name, 'totalAmount': total} for name, total in summary.items()]
     return jsonify({'summary': summary_list})
@@ -60,14 +53,7 @@ def transaction_summary_by_products(last_n_days):
 # REST API: Transaction summary by manufacturing city over the last N days
 @app.route('/assignment/transactionSummaryByManufacturingCity/<int:last_n_days>', methods=['GET'])
 def transaction_summary_by_city(last_n_days):
-    cutoff_date = datetime.now() - timedelta(days=last_n_days)
-    summary = {}
-
-    for transaction, details in transaction_data.items():
-        if details['transactionDatetime'] >= cutoff_date:
-            product_id = details['productId']
-            city_name = product_data.get(product_id, {}).get('productManufacturingCity', 'Unknown')
-            summary[city_name] = summary.get(city_name, 0) + details['transactionAmount']
+    summary = process_summary(last_n_days, transaction_data, product_data, 'productManufacturingCity')
 
     summary_list = [{'cityName': name, 'totalAmount': total} for name, total in summary.items()]
     return jsonify({'summary': summary_list})
